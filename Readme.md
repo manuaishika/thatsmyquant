@@ -1,1 +1,1 @@
-first quant project pls be nice god 
+trying to optimize PnL
