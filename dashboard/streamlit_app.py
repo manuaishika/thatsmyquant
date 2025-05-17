@@ -11,12 +11,12 @@ st.set_page_config(page_title="Pairs Trading Dashboard", layout="wide")
 
 st.title("📈 Pairs Trading Backtest Dashboard")
 
-# --- Multi-file Upload for Strategy Comparison ---
-uploaded_files = st.file_uploader("Upload one or more backtest results (CSV)", type=["csv"], accept_multiple_files=True)
+# --- Sidebar for file upload and downloads ---
+st.sidebar.header("Upload & Download")
+uploaded_files = st.sidebar.file_uploader("Upload one or more backtest results (CSV)", type=["csv"], accept_multiple_files=True)
 
 # Load sample data (from backtest/test_engine.py output)
 def load_sample_results():
-    # For demo, generate synthetic data
     n_days = 100
     np.random.seed(42)
     t = np.linspace(0, 10, n_days)
@@ -26,7 +26,6 @@ def load_sample_results():
     asset2 = base - spread
     prices = pd.DataFrame({'asset1': asset1, 'asset2': asset2}, index=pd.date_range(start='2024-01-01', periods=n_days))
     spread_series = prices['asset1'] - prices['asset2']
-    # Fake trades and PnL
     trades = pd.DataFrame({
         'type': ['entry', 'exit', 'entry', 'exit'],
         'i': [10, 11, 13, 14],
@@ -81,84 +80,96 @@ if uploaded_files:
     else:
         prices, spread_series, _, _ = load_sample_results()
     pnl = trades['pnl'].dropna() if 'pnl' in trades.columns else pd.Series([])
-    st.success(f"Loaded backtest results: {file.name}")
+    st.sidebar.success(f"Loaded backtest results: {file.name}")
 else:
     prices, spread_series, trades, pnl = load_sample_results()
 
 # --- Download Buttons ---
-st.download_button(
+st.sidebar.download_button(
     label="Download Trade Log as CSV",
     data=trades.to_csv(index=False),
     file_name="trade_log.csv",
     mime="text/csv"
 )
 if isinstance(pnl, pd.Series) and not pnl.empty:
-    st.download_button(
+    st.sidebar.download_button(
         label="Download PnL as CSV",
         data=pnl.to_csv(index=False, header=True),
         file_name="pnl.csv",
         mime="text/csv"
     )
 
-# Show metrics
-st.header("Performance Metrics")
+# --- Summary Metric Cards ---
 with io.StringIO() as buf, contextlib.redirect_stdout(buf):
     evaluate_performance(trades, pnl)
     perf_output = buf.getvalue()
-st.code(perf_output, language="text")
 
-# --- Advanced Visualizations ---
-# Entry/Exit markers on price chart
-st.header("Price Series with Entry/Exit Markers")
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=prices.index, y=prices['asset1'], mode='lines', name='Asset 1'))
-fig.add_trace(go.Scatter(x=prices.index, y=prices['asset2'], mode='lines', name='Asset 2'))
+# Parse metrics for cards
+metrics = {}
+for line in perf_output.splitlines():
+    if ':' in line:
+        k, v = line.split(':', 1)
+        metrics[k.strip()] = v.strip()
 
-if 'i' in trades.columns and 'type' in trades.columns:
-    entry_idx = trades[trades['type'] == 'entry']['i'].values
-    exit_idx = trades[trades['type'] == 'exit']['i'].values
-    # Markers for entries
-    fig.add_trace(go.Scatter(
-        x=prices.index[entry_idx],
-        y=prices['asset1'].iloc[entry_idx],
-        mode='markers',
-        marker=dict(symbol='triangle-up', color='green', size=12),
-        name='Entry'))
-    # Markers for exits
-    fig.add_trace(go.Scatter(
-        x=prices.index[exit_idx],
-        y=prices['asset1'].iloc[exit_idx],
-        mode='markers',
-        marker=dict(symbol='x', color='red', size=12),
-        name='Exit'))
-st.plotly_chart(fig, use_container_width=True)
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Return", metrics.get("Total Return", "-"))
+col2.metric("Sharpe Ratio", metrics.get("Sharpe Ratio", "-"))
+col3.metric("Max Drawdown", metrics.get("Maximum Drawdown", "-"))
+col4.metric("Win Rate", metrics.get("Win Rate", "-"))
 
-# Cumulative PnL plot
-st.header("Cumulative PnL")
-if not pnl.empty:
-    cum_pnl = pnl.cumsum()
-    st.line_chart(cum_pnl)
-else:
-    st.info("No PnL data available for cumulative PnL plot.")
+# --- Tabbed Layout ---
+tabs = st.tabs(["Overview", "Visualizations", "Trades", "Comparison"])
 
-# Drawdown plot
-st.header("Drawdown Curve")
-if not pnl.empty:
-    cum_pnl = pnl.cumsum()
-    running_max = cum_pnl.cummax()
-    drawdown = cum_pnl - running_max
-    st.line_chart(drawdown)
-else:
-    st.info("No PnL data available for drawdown plot.")
+with tabs[0]:
+    st.subheader("Overview")
+    st.code(perf_output, language="text")
 
-# Show spread
-st.header("Spread (Asset1 - Asset2)")
-st.line_chart(spread_series)
+with tabs[1]:
+    st.subheader("Advanced Visualizations")
+    # Entry/Exit markers on price chart
+    st.markdown("**Price Series with Entry/Exit Markers**")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=prices.index, y=prices['asset1'], mode='lines', name='Asset 1'))
+    fig.add_trace(go.Scatter(x=prices.index, y=prices['asset2'], mode='lines', name='Asset 2'))
+    if 'i' in trades.columns and 'type' in trades.columns:
+        entry_idx = trades[trades['type'] == 'entry']['i'].values
+        exit_idx = trades[trades['type'] == 'exit']['i'].values
+        fig.add_trace(go.Scatter(
+            x=prices.index[entry_idx],
+            y=prices['asset1'].iloc[entry_idx],
+            mode='markers',
+            marker=dict(symbol='triangle-up', color='green', size=12),
+            name='Entry'))
+        fig.add_trace(go.Scatter(
+            x=prices.index[exit_idx],
+            y=prices['asset1'].iloc[exit_idx],
+            mode='markers',
+            marker=dict(symbol='x', color='red', size=12),
+            name='Exit'))
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("**Cumulative PnL**")
+    if not pnl.empty:
+        cum_pnl = pnl.cumsum()
+        st.line_chart(cum_pnl)
+    else:
+        st.info("No PnL data available for cumulative PnL plot.")
+    st.markdown("**Drawdown Curve**")
+    if not pnl.empty:
+        cum_pnl = pnl.cumsum()
+        running_max = cum_pnl.cummax()
+        drawdown = cum_pnl - running_max
+        st.line_chart(drawdown)
+    else:
+        st.info("No PnL data available for drawdown plot.")
+    st.markdown("**Spread (Asset1 - Asset2)**")
+    st.line_chart(spread_series)
 
-# Show trade log
-st.header("Trade Log")
-st.dataframe(trades)
+with tabs[2]:
+    st.subheader("Trade Log")
+    st.dataframe(trades)
+    st.markdown("**Trade PnL**")
+    st.bar_chart(pnl)
 
-# Show PnL
-st.header("Trade PnL")
-st.bar_chart(pnl) 
+with tabs[3]:
+    st.subheader("Strategy Comparison Info")
+    st.write("Upload multiple files in the sidebar to compare strategies.") 
