@@ -117,6 +117,28 @@ col2.metric("Sharpe Ratio", metrics.get("Sharpe Ratio", "-"))
 col3.metric("Max Drawdown", metrics.get("Maximum Drawdown", "-"))
 col4.metric("Win Rate", metrics.get("Win Rate", "-"))
 
+# --- Date Range Selector ---
+min_date = prices.index.min()
+max_date = prices.index.max()
+def_date = (min_date, max_date)
+date_range = st.sidebar.date_input(
+    "Select date range",
+    value=def_date,
+    min_value=min_date,
+    max_value=max_date
+)
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    start_date, end_date = date_range
+    mask = (prices.index >= pd.to_datetime(start_date)) & (prices.index <= pd.to_datetime(end_date))
+    prices = prices.loc[mask]
+    spread_series = spread_series.loc[mask]
+    # Filter trades and pnl if possible
+    if 'i' in trades.columns:
+        valid_idx = prices.index
+        trades = trades[trades['i'].apply(lambda x: x in range(len(valid_idx)))]
+    if not pnl.empty and len(pnl) == len(valid_idx):
+        pnl = pnl.iloc[:len(valid_idx)]
+
 # --- Tabbed Layout ---
 tabs = st.tabs(["Overview", "Visualizations", "Trades", "Comparison"])
 
