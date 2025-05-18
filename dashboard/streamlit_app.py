@@ -92,6 +92,8 @@ else:
     from evaluator.performance import evaluate_performance
     import io
     import contextlib
+    import tempfile
+    import base64
 
     # --- Strategy Comparison ---
     if uploaded_files and len(uploaded_files) > 1:
@@ -245,4 +247,33 @@ else:
 
     with tabs[3]:
         st.subheader("Strategy Comparison Info")
-        st.write("Upload multiple files in the sidebar to compare strategies.") 
+        st.write("Upload multiple files in the sidebar to compare strategies.")
+
+    # --- PDF Export Button ---
+    def export_pdf(metrics, trades):
+        html = f"""
+        <h1>Pairs Trading Backtest Report</h1>
+        <h2>Performance Metrics</h2>
+        <ul>
+        {''.join([f'<li><b>{k}:</b> {v}</li>' for k, v in metrics.items()])}
+        </ul>
+        <h2>Trade Log</h2>
+        {trades.to_html(index=False)}
+        """
+        try:
+            import pdfkit
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
+                pdfkit.from_string(html, tmpfile.name)
+                with open(tmpfile.name, "rb") as f:
+                    pdf_bytes = f.read()
+                b64 = base64.b64encode(pdf_bytes).decode()
+                href = f'<a href="data:application/pdf;base64,{b64}" download="backtest_report.pdf">Download PDF Report</a>'
+                return href
+        except Exception as e:
+            st.warning(f"PDF export failed: {e}. Download as HTML instead.")
+            b64 = base64.b64encode(html.encode()).decode()
+            href = f'<a href="data:text/html;base64,{b64}" download="backtest_report.html">Download HTML Report</a>'
+            return href
+
+    st.markdown("### Export Report")
+    st.markdown(export_pdf(metrics, trades), unsafe_allow_html=True) 
