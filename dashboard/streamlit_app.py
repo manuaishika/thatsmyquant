@@ -12,21 +12,23 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import yaml
 from yaml.loader import SafeLoader
 
-# Demo user credentials (hashed passwords for 'demo' and 'test')
-usernames = ['demo', 'test']
-passwords = stauth.Hasher(['demo', 'test']).generate()
+# Pre-hashed passwords for 'demo' and 'test'
+hashed_passwords = {
+    'demo': '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',  # 'demo'
+    'test': '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'   # 'test'
+}
 
 config = {
     'credentials': {
         'usernames': {
-            usernames[0]: {
+            'demo': {
                 'name': 'Demo User',
-                'password': passwords[0],
+                'password': hashed_passwords['demo'],
                 'email': 'demo@example.com'
             },
-            usernames[1]: {
+            'test': {
                 'name': 'Test User',
-                'password': passwords[1],
+                'password': hashed_passwords['test'],
                 'email': 'test@example.com'
             }
         }
