@@ -5,62 +5,38 @@ import os
 import sys
 import plotly.graph_objects as go
 import plotly.express as px
-import streamlit_authenticator as stauth
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# --- User Authentication Setup ---
-import yaml
-from yaml.loader import SafeLoader
+# --- Simple Authentication ---
+def check_password():
+    """Returns `True` if the user had the correct password."""
 
-# Pre-hashed passwords for 'demo' and 'test'
-hashed_passwords = {
-    'demo': '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',  # 'demo'
-    'test': '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'   # 'test'
-}
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == "demo":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password.
+        else:
+            st.session_state["password_correct"] = False
 
-config = {
-    'credentials': {
-        'usernames': {
-            'demo': {
-                'name': 'Demo User',
-                'password': hashed_passwords['demo'],
-                'email': 'demo@example.com'
-            },
-            'test': {
-                'name': 'Test User',
-                'password': hashed_passwords['test'],
-                'email': 'test@example.com'
-            }
-        }
-    },
-    'cookie': {
-        'expiry_days': 1,
-        'key': 'some_signature_key',
-        'name': 'auth_cookie'
-    },
-    'preauthorized': {
-        'emails': ["demo@example.com", "test@example.com"]
-    }
-}
+    if "password_correct" not in st.session_state:
+        # First run, show input for password.
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error.
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
+        st.error("😕 Password incorrect")
+        return False
+    else:
+        # Password correct.
+        return True
 
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    config['preauthorized']
-)
-
-name, authentication_status, username = authenticator.login('Login', 'main')
-
-if authentication_status is False:
-    st.error('Username/password is incorrect')
-elif authentication_status is None:
-    st.warning('Please enter your username and password')
-else:
-    authenticator.logout('Logout', 'sidebar')
-    st.sidebar.write(f'Logged in as: {name} ({username})')
-
+if check_password():
     st.set_page_config(page_title="Pairs Trading Dashboard", layout="wide")
     st.title("📈 Pairs Trading Backtest Dashboard")
 
