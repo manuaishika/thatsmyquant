@@ -8,16 +8,12 @@ Check out the live dashboard here: [Pairs Trading Dashboard](https://manuaishika
 
 ## Installation
 
-1. Clone the repository:
-```bash
-git clone [repository-url]
-cd quant-system
-```
+1. Clone the repository
 
 2. Create a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate 
 ```
 
 3. Install dependencies:
